@@ -35,6 +35,7 @@ const OCRUpload = () => {
   const [processing, setProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState(null);
   const [error, setError] = useState('');
+  const [medicineDetails, setMedicineDetails] = useState({});
 
   const onDrop = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0];
@@ -81,6 +82,24 @@ const OCRUpload = () => {
       });
 
       setOcrResult(response.data);
+      
+      // Fetch detailed information for each detected medicine
+      if (response.data.medicines && response.data.medicines.length > 0) {
+        const details = {};
+        for (const medicine of response.data.medicines) {
+          if (medicine.fromDatabase && medicine.id) {
+            try {
+              const detailResponse = await axios.get(`/api/ocr/medicine/${medicine.id}`);
+              if (detailResponse.data.success) {
+                details[medicine.id] = detailResponse.data.medicine;
+              }
+            } catch (detailError) {
+              console.warn(`Failed to fetch details for ${medicine.name}:`, detailError);
+            }
+          }
+        }
+        setMedicineDetails(details);
+      }
     } catch (error) {
       setError(error.response?.data?.error || 'Failed to process prescription. Please try again.');
       console.error('OCR processing error:', error);
@@ -97,6 +116,7 @@ const OCRUpload = () => {
     setUploadedFile(null);
     setOcrResult(null);
     setError('');
+    setMedicineDetails({});
   };
 
   return (
@@ -258,7 +278,18 @@ const OCRUpload = () => {
                   <Typography variant="body2" color="text.secondary" gutterBottom>
                     Processing Time: {ocrResult.processingTime}ms | 
                     Confidence: {Math.round(ocrResult.confidence * 100)}%
+                    {ocrResult.extractionMethod && (
+                      <> | Method: {ocrResult.extractionMethod.replace(/_/g, ' ')}</>
+                    )}
+                    {ocrResult.ocrConfidence && (
+                      <> | OCR Confidence: {ocrResult.ocrConfidence}%</>
+                    )}
                   </Typography>
+                  {ocrResult.error && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      {ocrResult.error}
+                    </Alert>
+                  )}
                 </Box>
 
                 {/* Extracted Medicines */}
@@ -269,53 +300,152 @@ const OCRUpload = () => {
                     </Typography>
                     
                     <List>
-                      {ocrResult.medicines.map((medicine, index) => (
-                        <React.Fragment key={medicine.id}>
-                          <ListItem
-                            sx={{
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: 1,
-                              mb: 1,
-                            }}
-                          >
-                            <ListItemAvatar>
-                              <Avatar sx={{ bgcolor: 'success.main' }}>
-                                <LocalPharmacy />
-                              </Avatar>
-                            </ListItemAvatar>
-                            <ListItemText
-                              primary={
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  <Typography variant="subtitle2" fontWeight="bold">
+                      {ocrResult.medicines.map((medicine, index) => {
+                        const details = medicineDetails[medicine.id];
+                        return (
+                          <React.Fragment key={medicine.id}>
+                            <Card
+                              sx={{
+                                mb: 2,
+                                border: '2px solid',
+                                borderColor: 'success.main',
+                                backgroundColor: 'success.light',
+                                '&:hover': {
+                                  boxShadow: 3,
+                                },
+                              }}
+                            >
+                              <CardContent>
+                                {/* Medicine Name Header */}
+                                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                                  <Avatar sx={{ bgcolor: 'success.main' }}>
+                                    <LocalPharmacy />
+                                  </Avatar>
+                                  <Typography 
+                                    variant="h5" 
+                                    fontWeight="bold"
+                                    sx={{ 
+                                      color: 'success.dark',
+                                      backgroundColor: 'white',
+                                      px: 2,
+                                      py: 1,
+                                      borderRadius: 2,
+                                      display: 'inline-block',
+                                      boxShadow: 1
+                                    }}
+                                  >
                                     {medicine.name}
                                   </Typography>
                                   <Chip
-                                    label={`${Math.round(medicine.confidence * 100)}%`}
-                                    size="small"
+                                    label={`${Math.round(medicine.confidence * 100)}% Match`}
+                                    size="medium"
                                     color="success"
+                                    variant="filled"
                                   />
+                                  {medicine.fromDatabase && (
+                                    <Chip
+                                      label="✓ Verified"
+                                      size="medium"
+                                      color="info"
+                                      variant="filled"
+                                    />
+                                  )}
                                 </Box>
-                              }
-                              secondary={
-                                <Box>
-                                  <Typography variant="body2" color="text.secondary">
-                                    Generic: {medicine.genericName}
-                                  </Typography>
+
+                                {/* Medicine Details Grid */}
+                                <Grid container spacing={2}>
+                                  <Grid item xs={12} md={6}>
+                                    <Box sx={{ backgroundColor: 'white', p: 2, borderRadius: 1 }}>
+                                      <Typography variant="h6" color="primary" gutterBottom>
+                                        Basic Information
+                                      </Typography>
+                                      <Typography variant="body1" sx={{ mb: 1 }}>
+                                        <strong>Generic Name:</strong> {medicine.genericName}
+                                      </Typography>
+                                      {details && (
+                                        <>
+                                          <Typography variant="body1" sx={{ mb: 1 }}>
+                                            <strong>Category:</strong> {details.category}
+                                          </Typography>
+                                          <Typography variant="body1" sx={{ mb: 1 }}>
+                                            <strong>Form:</strong> {details.dosageForm}
+                                          </Typography>
+                                          <Typography variant="body1" sx={{ mb: 1 }}>
+                                            <strong>Strength:</strong> {details.strength}
+                                          </Typography>
+                                          <Typography variant="body1" sx={{ mb: 1 }}>
+                                            <strong>Manufacturer:</strong> {details.manufacturer}
+                                          </Typography>
+                                        </>
+                                      )}
+                                      {medicine.dosageInfo && medicine.dosageInfo.strength && (
+                                        <Typography variant="body1" sx={{ mb: 1 }}>
+                                          <strong>Detected Strength:</strong> {medicine.dosageInfo.strength}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Grid>
+                                  
+                                  <Grid item xs={12} md={6}>
+                                    <Box sx={{ backgroundColor: 'white', p: 2, borderRadius: 1 }}>
+                                      <Typography variant="h6" color="primary" gutterBottom>
+                                        Medical Information
+                                      </Typography>
+                                      {details && (
+                                        <>
+                                          <Typography variant="body1" sx={{ mb: 1 }}>
+                                            <strong>Indication:</strong> {details.indication}
+                                          </Typography>
+                                          <Typography variant="body1" sx={{ mb: 1 }}>
+                                            <strong>Classification:</strong> {details.classification}
+                                          </Typography>
+                                          <Typography variant="body1" sx={{ mb: 1 }}>
+                                            <strong>Prescription Required:</strong> {details.prescriptionRequired ? 'Yes' : 'No'}
+                                          </Typography>
+                                          {details.description && (
+                                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                              {details.description}
+                                            </Typography>
+                                          )}
+                                        </>
+                                      )}
+                                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                        <strong>Detection:</strong> {medicine.matchType || 'pattern'} match
+                                      </Typography>
+                                      {medicine.extractedText && medicine.extractedText !== medicine.name && (
+                                        <Typography variant="body2" color="text.secondary">
+                                          <strong>Raw Text:</strong> "{medicine.extractedText}"
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  </Grid>
+                                </Grid>
+
+                                {/* Action Buttons */}
+                                <Box display="flex" gap={2} mt={3} justifyContent="center">
                                   <Button
-                                    size="small"
-                                    variant="outlined"
+                                    variant="contained"
+                                    color="primary"
+                                    size="large"
                                     onClick={() => searchMedicine(medicine)}
-                                    sx={{ mt: 1 }}
+                                    startIcon={<LocalPharmacy />}
                                   >
                                     Find Pharmacies
                                   </Button>
+                                  <Button
+                                    variant="outlined"
+                                    color="secondary"
+                                    size="large"
+                                    onClick={() => navigate(`/substitutes?id=${medicine.id}`)}
+                                  >
+                                    Find Substitutes
+                                  </Button>
                                 </Box>
-                              }
-                            />
-                          </ListItem>
-                        </React.Fragment>
-                      ))}
+                              </CardContent>
+                            </Card>
+                          </React.Fragment>
+                        );
+                      })}
                     </List>
                   </Box>
                 )}
@@ -342,11 +472,7 @@ const OCRUpload = () => {
                   </Box>
                 </Box>
 
-                {ocrResult.medicines.length === 0 && (
-                  <Alert severity="warning" sx={{ mt: 2 }}>
-                    No medicines were detected in the prescription. Please ensure the image is clear and contains readable medicine names.
-                  </Alert>
-                )}
+
               </CardContent>
             </Card>
           )}

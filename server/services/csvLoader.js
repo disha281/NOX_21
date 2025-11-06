@@ -18,7 +18,7 @@ class CSVLoader {
       const lines = csvData.split('\n');
       
       // Skip header row
-      const headers = lines[0].split(',');
+      lines[0].split(','); // Header row (not used)
       
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -37,7 +37,7 @@ class CSVLoader {
             classification: values[6] || 'Over-the-Counter',
             // Derived fields for compatibility
             genericName: this.extractGenericName(values[0]),
-            saltComposition: values[3] || '0 mg',
+            saltComposition: this.extractSaltComposition(values[0]) || values[0] || 'Unknown',
             therapeuticClass: values[1] || 'General',
             prescriptionRequired: (values[6] || '').toLowerCase().includes('prescription'),
             popularity: Math.floor(Math.random() * 100) + 1,
@@ -95,6 +95,53 @@ class CSVLoader {
     }
     
     return name;
+  }
+
+  extractSaltComposition(medicineName) {
+    // Extract active ingredient/salt composition from medicine name
+    const name = (medicineName || '').toLowerCase();
+    
+    // Common active ingredients mapping - more specific
+    const saltMap = {
+      'paracetamol': 'acetaminophen',
+      'acetaminophen': 'acetaminophen', 
+      'aspirin': 'acetylsalicylic acid',
+      'ibuprofen': 'ibuprofen',
+      'amoxicillin': 'amoxicillin',
+      'omeprazole': 'omeprazole',
+      'metformin': 'metformin',
+      'lisinopril': 'lisinopril',
+      'atorvastatin': 'atorvastatin',
+      'simvastatin': 'simvastatin',
+      'amlodipine': 'amlodipine',
+      'losartan': 'losartan',
+      'hydrochlorothiazide': 'hydrochlorothiazide',
+      'ciprofloxacin': 'ciprofloxacin',
+      'azithromycin': 'azithromycin',
+      'cephalexin': 'cephalexin',
+      'doxycycline': 'doxycycline',
+      'prednisone': 'prednisone',
+      'warfarin': 'warfarin',
+      'insulin': 'insulin'
+    };
+    
+    // Find matching salt composition
+    for (const [medicine, salt] of Object.entries(saltMap)) {
+      if (name.includes(medicine)) {
+        return salt;
+      }
+    }
+    
+    // Extract suffix-based groupings for more specific matching
+    const suffixes = ['cillin', 'mycin', 'profen', 'statin', 'nazole', 'phen', 'met', 'vir'];
+    for (const suffix of suffixes) {
+      if (name.includes(suffix)) {
+        return `${suffix}_group`; // Group by suffix
+      }
+    }
+    
+    // If no specific mapping found, use the full name to avoid over-grouping
+    return name || 'unknown';
   }
 
   generateSideEffects(category) {

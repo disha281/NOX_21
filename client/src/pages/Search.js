@@ -217,14 +217,23 @@ const Search = () => {
           </Typography>
           <Box display="flex" flexWrap="wrap" gap={1}>
             {medicines.map((medicine) => (
-              <Chip
-                key={medicine.id}
-                label={`${medicine.name} (${medicine.genericName})`}
-                onClick={() => handleMedicineSelect(medicine)}
-                clickable
-                variant={selectedMedicine?.id === medicine.id ? "filled" : "outlined"}
-                color={selectedMedicine?.id === medicine.id ? "primary" : "default"}
-              />
+              <Box key={medicine.id} display="flex" alignItems="center" gap={1} mb={1}>
+                <Chip
+                  label={`${medicine.name} (${medicine.genericName})`}
+                  onClick={() => handleMedicineSelect(medicine)}
+                  clickable
+                  variant={selectedMedicine?.id === medicine.id ? "filled" : "outlined"}
+                  color={selectedMedicine?.id === medicine.id ? "primary" : "default"}
+                />
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => navigate(`/substitutes?id=${medicine.id}`)}
+                  sx={{ minWidth: 'auto', fontSize: '0.75rem' }}
+                >
+                  Substitutes
+                </Button>
+              </Box>
             ))}
           </Box>
         </Box>
@@ -275,10 +284,7 @@ const Search = () => {
               </Button>
               <Button
                 variant="outlined"
-                onClick={() => {
-                  // Navigate to substitutes - would be implemented
-                  console.log('Find substitutes for', selectedMedicine.id);
-                }}
+                onClick={() => navigate(`/substitutes?id=${selectedMedicine.id}`)}
               >
                 Find Substitutes
               </Button>

@@ -12,6 +12,7 @@ import OCRUpload from './pages/OCRUpload';
 import Dashboard from './pages/Dashboard';
 import Pharmacy from './pages/Pharmacy';
 import Login from './pages/Login';
+import Substitutes from './pages/Substitutes';
 
 const theme = createTheme({
   palette: {
@@ -74,6 +75,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/pharmacy" element={<Pharmacy />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/substitutes" element={<Substitutes />} />
           </Routes>
         </Box>
       </Router>
