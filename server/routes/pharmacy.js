@@ -4,6 +4,34 @@ const { pharmacies, generatePharmacyInventory } = require('../data/pharmacies');
 const csvLoader = require('../services/csvLoader');
 const { calculateDistance } = require('../utils/geoUtils');
 
+// Helper to create a new medicine in-memory when pharmacy adds one not present in CSV
+function createCustomMedicine(name) {
+  const medicines = csvLoader.getMedicines();
+  const id = `med_custom_${Date.now()}`;
+  const medicine = {
+    id,
+    name,
+    category: 'Custom',
+    dosageForm: 'Tablet',
+    strength: 'N/A',
+    manufacturer: 'Local Pharmacy',
+    indication: 'General',
+    classification: 'Over-the-Counter',
+    genericName: name,
+    saltComposition: 'N/A',
+    therapeuticClass: 'General',
+    prescriptionRequired: false,
+    popularity: 1,
+    description: `Custom entry for ${name}`,
+    sideEffects: [],
+    dosage: 'As directed',
+    maxDailyDose: 'N/A'
+  };
+
+  medicines.push(medicine);
+  return medicine;
+}
+
 // Initialize pharmacy inventory on first load
 let inventoryInitialized = false;
 function ensureInventoryInitialized() {
@@ -67,7 +95,13 @@ router.get('/:id', async (req, res) => {
     ensureInventoryInitialized();
     
     const { id } = req.params;
-    const pharmacy = pharmacies.find(p => p.id === id);
+    // Support demo alias 'self' which maps to the first pharmacy
+    let pharmacy;
+    if (id === 'self') {
+      pharmacy = pharmacies[0];
+    } else {
+      pharmacy = pharmacies.find(p => p.id === id);
+    }
     
     if (!pharmacy) {
       return res.status(404).json({ error: 'Pharmacy not found' });
@@ -186,6 +220,91 @@ router.get('/compare/:medicineId', async (req, res) => {
       comparisons: pharmaciesWithMedicine,
       total: pharmaciesWithMedicine.length
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add or update a medicine entry for a pharmacy (demo: /self maps to first pharmacy)
+router.post('/:id/medicine', async (req, res) => {
+  try {
+    ensureInventoryInitialized();
+
+    const { id } = req.params; // pharmacy id or 'self'
+    const { name, price, stock = 10 } = req.body;
+
+    if (!name || price === undefined) {
+      return res.status(400).json({ error: 'Name and price are required' });
+    }
+
+    // Resolve pharmacy
+    let pharmacy;
+    // If client provided a pharmacyName, create a new pharmacy entry (demo behavior)
+    const { pharmacyName } = req.body || {};
+    if (pharmacyName && pharmacyName.trim()) {
+      // create a lightweight custom pharmacy
+      const newId = `pharm_custom_${Date.now()}`;
+      const base = pharmacies[0] || { lat: 12.97, lng: 77.59 };
+      const newPharmacy = {
+        id: newId,
+        name: pharmacyName.trim(),
+        address: 'Custom Address',
+        phone: '',
+        lat: base.lat + (Math.random() - 0.5) * 0.01,
+        lng: base.lng + (Math.random() - 0.5) * 0.01,
+        rating: 4.0,
+        openHours: '9-21',
+        is24x7: false,
+        type: 'custom',
+        services: ['prescription', 'otc'],
+        inventory: []
+      };
+      pharmacies.push(newPharmacy);
+      pharmacy = newPharmacy;
+    } else {
+      if (id === 'self') {
+        pharmacy = pharmacies[0];
+      } else {
+        pharmacy = pharmacies.find(p => p.id === id);
+      }
+    }
+
+    if (!pharmacy) {
+      return res.status(404).json({ error: 'Pharmacy not found' });
+    }
+
+    // Try to find existing medicine by exact name (case-insensitive) or by search
+    let medicine = csvLoader.getMedicines().find(m => m.name.toLowerCase() === name.toLowerCase());
+    if (!medicine) {
+      const searchResults = csvLoader.searchMedicines(name, 1);
+      medicine = searchResults && searchResults.length ? searchResults[0] : null;
+    }
+
+    // If still not found, create a custom medicine in-memory
+    if (!medicine) {
+      medicine = createCustomMedicine(name);
+    }
+
+    const medicineId = medicine.id;
+
+    // Update or add inventory entry
+    const existing = pharmacy.inventory.find(item => item.medicineId === medicineId);
+    const now = new Date().toISOString();
+    if (existing) {
+      existing.price = price;
+      existing.stock = parseInt(stock, 10);
+      existing.lastUpdated = now;
+    } else {
+      pharmacy.inventory.push({
+        medicineId,
+        price,
+        stock: parseInt(stock, 10),
+        discount: 0,
+        lastUpdated: now
+      });
+    }
+
+    res.json({ success: true, pharmacyId: pharmacy.id, medicineId, price, stock });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

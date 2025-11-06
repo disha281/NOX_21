@@ -11,7 +11,12 @@ import {
   InputAdornment,
   Chip,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -33,6 +38,12 @@ const Home = () => {
   const [locationError, setLocationError] = useState('');
   const [popularMedicines, setPopularMedicines] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Login form state
+  const [role, setRole] = useState('user'); // 'user' or 'pharmacy'
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [logging, setLogging] = useState(false);
 
   useEffect(() => {
     fetchPopularMedicines();
@@ -75,6 +86,34 @@ const Home = () => {
   const handleKeyPress = (event) => {
     if (event.key === 'Enter') {
       handleSearch();
+    }
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError('');
+    if (!email.trim() || !password) {
+      setLoginError('Please provide email and password.');
+      return;
+    }
+
+    try {
+      setLogging(true);
+      // TODO: replace with actual login API call
+      console.log('Logging in as:', role, email);
+      // Simulate async
+      await new Promise((res) => setTimeout(res, 800));
+      // For now navigate to the pharmacy panel for pharmacies
+      if (role === 'pharmacy') {
+        navigate('/pharmacy');
+      } else {
+        navigate('/search');
+      }
+    } catch (err) {
+      console.error(err);
+      setLoginError('Login failed. Please try again.');
+    } finally {
+      setLogging(false);
     }
   };
 
@@ -198,6 +237,8 @@ const Home = () => {
             Location detected! You'll get personalized nearby pharmacy recommendations.
           </Alert>
         )}
+
+        {/* Login moved to navigation as 'Pharmacy Space' */}
       </Box>
 
       {/* Popular Medicines */}

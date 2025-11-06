@@ -26,6 +26,8 @@ const Header = () => {
     { label: 'Compare', path: '/compare', icon: <Compare /> },
     { label: 'OCR Upload', path: '/ocr', icon: <CameraAlt /> },
     { label: 'Dashboard', path: '/dashboard', icon: <Dashboard /> },
+    // Moved login to navigation and renamed as 'Pharmacy Space'
+    { label: 'Pharmacy Space', path: '/login', icon: <LocalPharmacy /> },
   ];
 
   return (

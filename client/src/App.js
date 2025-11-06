@@ -10,6 +10,8 @@ import Search from './pages/Search';
 import Compare from './pages/Compare';
 import OCRUpload from './pages/OCRUpload';
 import Dashboard from './pages/Dashboard';
+import Pharmacy from './pages/Pharmacy';
+import Login from './pages/Login';
 
 const theme = createTheme({
   palette: {
@@ -70,6 +72,8 @@ function App() {
             <Route path="/compare" element={<Compare />} />
             <Route path="/ocr" element={<OCRUpload />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/pharmacy" element={<Pharmacy />} />
+            <Route path="/login" element={<Login />} />
           </Routes>
         </Box>
       </Router>
